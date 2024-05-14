@@ -78,6 +78,16 @@ class Board
       puts row.map { |cell| cell }.join(' ')
     end
   end
+
+  def valid_coordinate?(coord)
+    x, y = coord
+    x.between?(0, @size - 1) && y.between?(0, @size - 1)
+  end
+
+  def coordinate_status(coord)
+    x, y = coord
+    @grid[x][y] if valid_coordinate?(coord)
+  end
 end
 
 class Player
@@ -145,19 +155,49 @@ class Game
 end
 
 class GameRunner
+  ADJACENT_OFFSETS = [[-1, 0], [1, 0], [0, -1], [0, 1]]
+
   def initialize(game)
     @game = game
+    @hits = []
+    @targets = []
+  end
+
+  def random_shot(board)
+    loop do
+      coord = [rand(board.size), rand(board.size)]
+      return coord if board.coordinate_status(coord) == '~' || board.coordinate_status(coord) == 'S'
+    end
+  end
+
+  def adjacent_targets(last_hit)
+    x, y = last_hit
+    ADJACENT_OFFSETS.map { |dx, dy| [x + dx, y + dy] }.select { |coord| @game.player2.board.valid_coordinate?(coord) }
+  end
+
+  def next_shot
+    if @targets.empty?
+      random_shot(@game.current_player == @game.player1 ? @game.player2.board : @game.player1.board)
+    else
+      @targets.shift
+    end
   end
 
   def play
     until @game.game_over?
       current_player = @game.current_player
-      puts "#{current_player.name}'s turn. Enter target coordinates (e.g., '3,4'):"
-      target_coord = gets.chomp.split(',').map(&:to_i)
+      target_coord = next_shot
       result = @game.play_turn(target_coord)
-      puts "Attack result: #{result}"
-      puts "Current board:"
-      @game.player1.board.display
+      puts "#{current_player.name} attacks #{target_coord}: #{result}"
+
+      if result == 'hit'
+        @hits << target_coord
+        @targets.concat(adjacent_targets(target_coord)).shuffle!  # Add adjacent squares to targets and shuffle
+      elsif result == 'miss' || result == 'already attacked'
+        @targets.reject! { |coord| coord == target_coord }  # Remove target if it was a miss or already attacked
+      end
+      puts "Current board of #{current_player.name}:"
+      current_player.board.display
       puts
     end
 
