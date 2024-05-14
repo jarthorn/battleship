@@ -55,8 +55,6 @@ end
 
 # Initialize shot history and target queue
 shots = create_empty_board(BOARD_SIZE)
-last_hit = nil  # Store the coordinate of the last hit
-target_queue = [] # Queue for target squares around the last hit
 
 # Generate checkerboard pattern coordinates
 def generate_checkerboard_pattern
@@ -82,9 +80,28 @@ def get_adjacent_coordinates(row, col)
 end
 
 # Take a shot
-def take_shot(game_board, shots, target_queue, last_hit, checkerboard_pattern)
+def take_shot(game_board, shots, target_queue, checkerboard_pattern)
   if target_queue.empty?
-    shot = checkerboard_pattern.shift
+    # Ensure that we have remaining coordinates to shoot
+    while !checkerboard_pattern.empty?
+      shot = checkerboard_pattern.shift
+      row, col = shot
+      unless shots[row][col]
+        break
+      end
+    end
+
+    # If checkerboard pattern is empty and no valid shot found, find any remaining shots
+    if checkerboard_pattern.empty? && shots.flatten.include?(false)
+      (0...BOARD_SIZE).each do |row|
+        (0...BOARD_SIZE).each do |col|
+          unless shots[row][col]
+            shot = [row, col]
+            break
+          end
+        end
+      end
+    end
   else
     shot = target_queue.shift
   end
@@ -109,7 +126,6 @@ end
 def simulate_game
   game_board = generate_random_board
   shots = create_empty_board(BOARD_SIZE)
-  last_hit = nil
   target_queue = []
   checkerboard_pattern = generate_checkerboard_pattern
 
@@ -118,7 +134,7 @@ def simulate_game
   total_ship_cells = SHIPS.reduce(0) { |sum, ship| sum + ship[:size] }
 
   until hits >= total_ship_cells
-    shot_result = take_shot(game_board, shots, target_queue, last_hit, checkerboard_pattern)
+    shot_result = take_shot(game_board, shots, target_queue, checkerboard_pattern)
     hits += 1 if shot_result[:result] == 'Hit'
     moves += 1
   end
