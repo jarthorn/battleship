@@ -79,8 +79,25 @@ def get_adjacent_coordinates(row, col)
   ].select { |r, c| r.between?(0, BOARD_SIZE - 1) && c.between?(0, BOARD_SIZE - 1) }
 end
 
+# Check if ship has been sunk
+def check_sunken_ships(hit_counts)
+  hit_counts.each_with_index do |count, index|
+    ship = SHIPS[index]
+    if count == ship[:size]
+      puts "The #{ship[:name]} has been sunk!"
+      # Mark ship as sunk (-1 indicates sunk ship)
+      hit_counts[index] = -1
+    end
+  end
+end
+
+# Initialize hits tracking
+def initialize_ship_hits
+  Array.new(SHIPS.size, 0)
+end
+
 # Take a shot
-def take_shot(game_board, shots, target_queue, checkerboard_pattern)
+def take_shot(game_board, shots, target_queue, checkerboard_pattern, hit_counts)
   shot = nil
 
   # If no target in queue, use checkerboard pattern
@@ -123,6 +140,8 @@ def take_shot(game_board, shots, target_queue, checkerboard_pattern)
     { row: row, col: col, result: 'Miss' }
   else
     puts "Shot at (#{row}, #{col}): Hit (Ship #{result})"
+    hit_counts[result - 1] += 1
+    check_sunken_ships(hit_counts)  # Check if any ships have been sunk
     adj_coords = get_adjacent_coordinates(row, col)
     adj_coords.each { |r, c| target_queue << [r, c] unless shots[r][c] }
     { row: row, col: col, result: 'Hit', ship: result }
@@ -135,13 +154,14 @@ def simulate_game
   shots = create_shots_board(BOARD_SIZE)
   target_queue = []
   checkerboard_pattern = generate_checkerboard_pattern
+  hit_counts = initialize_ship_hits
 
   moves = 0
   hits = 0
   total_ship_cells = SHIPS.reduce(0) { |sum, ship| sum + ship[:size] }
 
   until hits >= total_ship_cells
-    shot_result = take_shot(game_board, shots, target_queue, checkerboard_pattern)
+    shot_result = take_shot(game_board, shots, target_queue, checkerboard_pattern, hit_counts)
     hits += 1 if shot_result[:result] == 'Hit'
     moves += 1
   end
