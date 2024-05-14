@@ -14,6 +14,11 @@ def create_empty_board(size)
   Array.new(size) { Array.new(size, 0) }
 end
 
+# Function to create a shots tracking board
+def create_shots_board(size)
+  Array.new(size) { Array.new(size, false) }
+end
+
 # Function to check if the ship can be placed at the position
 def can_place_ship?(board, row, col, size, is_horizontal)
   if is_horizontal
@@ -53,10 +58,7 @@ def generate_random_board
   board
 end
 
-# Initialize shot history and target queue
-shots = create_empty_board(BOARD_SIZE)
-
-# Generate checkerboard pattern coordinates
+# Function to generate checkerboard pattern coordinates
 def generate_checkerboard_pattern
   pattern = []
   (0...BOARD_SIZE).each do |row|
@@ -66,8 +68,6 @@ def generate_checkerboard_pattern
   end
   pattern.shuffle
 end
-
-checkerboard_pattern = generate_checkerboard_pattern
 
 # Get adjacent coordinates
 def get_adjacent_coordinates(row, col)
@@ -81,30 +81,37 @@ end
 
 # Take a shot
 def take_shot(game_board, shots, target_queue, checkerboard_pattern)
-  if target_queue.empty?
-    # Ensure that we have remaining coordinates to shoot
-    while !checkerboard_pattern.empty?
-      shot = checkerboard_pattern.shift
-      row, col = shot
-      unless shots[row][col]
-        break
-      end
-    end
+  shot = nil
 
-    # If checkerboard pattern is empty and no valid shot found, find any remaining shots
-    if checkerboard_pattern.empty? && shots.flatten.include?(false)
-      (0...BOARD_SIZE).each do |row|
-        (0...BOARD_SIZE).each do |col|
-          unless shots[row][col]
-            shot = [row, col]
-            break
-          end
-        end
+  # If no target in queue, use checkerboard pattern
+  if target_queue.empty?
+    until checkerboard_pattern.empty?
+      potential_shot = checkerboard_pattern.shift
+      row, col = potential_shot
+      unless shots[row][col]
+        shot = potential_shot
+        break
       end
     end
   else
     shot = target_queue.shift
   end
+
+  # Final fallback if no shot has been assigned
+  if shot.nil?
+    (0...BOARD_SIZE).each do |row|
+      (0...BOARD_SIZE).each do |col|
+        unless shots[row][col]
+          shot = [row, col]
+          break
+        end
+      end
+      break if shot
+    end
+  end
+
+  # If shot is still nil, raise an error to catch unexpected states
+  raise "No valid shots remaining" if shot.nil?
 
   row, col = shot
   shots[row][col] = true
@@ -125,7 +132,7 @@ end
 # Example function to run the shots
 def simulate_game
   game_board = generate_random_board
-  shots = create_empty_board(BOARD_SIZE)
+  shots = create_shots_board(BOARD_SIZE)
   target_queue = []
   checkerboard_pattern = generate_checkerboard_pattern
 
